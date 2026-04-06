@@ -20,7 +20,12 @@ export const WishlistProvider = ({ children }) => {
       const ids = await getWishlistIds();
       setWishlistIds(Array.isArray(ids) ? ids : []);
     } catch (err) {
-      console.error("Failed to load wishlist ids", err);
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        setWishlistIds([]);
+      } else {
+        console.error("Failed to load wishlist ids", err);
+      }
     } finally {
       setLoadedOnce(true);
     }

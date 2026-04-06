@@ -30,7 +30,7 @@ public class Product {
 
     private Integer stock;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", length = 1000)
     private String imageUrl;
 
     public Product() {

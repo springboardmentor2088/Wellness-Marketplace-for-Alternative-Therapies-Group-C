@@ -1,7 +1,7 @@
  DROP TABLE IF EXISTS payments;
 
 CREATE TABLE IF NOT EXISTS users (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
@@ -39,9 +39,33 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+CREATE TABLE IF NOT EXISTS recommendation (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    symptom VARCHAR(255) NOT NULL,
+    suggested_therapy VARCHAR(255) NOT NULL,
+    source_api VARCHAR(100) NOT NULL,
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX (user_id),
+    INDEX (timestamp)
+);
+
+CREATE TABLE IF NOT EXISTS notification (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(100) NOT NULL,
+    message VARCHAR(1000) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'UNREAD',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX (user_id),
+    INDEX (created_at)
+);
+
 CREATE TABLE IF NOT EXISTS practitioner_profile (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL UNIQUE,
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL UNIQUE,
     license_number VARCHAR(50) NOT NULL,
     specialization VARCHAR(50) NOT NULL,
     experience_years INT NULL,
@@ -67,8 +91,8 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS practitioner_available_slots (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    practitioner_id BIGINT NOT NULL,
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    practitioner_id INT NOT NULL,
     available_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
@@ -80,9 +104,9 @@ CREATE TABLE IF NOT EXISTS practitioner_available_slots (
 );
 
 CREATE TABLE IF NOT EXISTS therapy_session (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    practitioner_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    practitioner_id INT NOT NULL,
+    user_id INT NOT NULL,
     date DATETIME NOT NULL,
     status ENUM('booked', 'completed', 'cancelled') NOT NULL DEFAULT 'booked',
     notes TEXT,
@@ -95,18 +119,59 @@ CREATE TABLE IF NOT EXISTS therapy_session (
 );
 
 CREATE TABLE IF NOT EXISTS products (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
     category VARCHAR(100),
-    stock INT DEFAULT 0
+    stock INT DEFAULT 0,
+    image_url VARCHAR(1000),
+    practitioner_id BIGINT NULL
 );
 
+SET @exists = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'image_url'
+);
+SET @sql = IF(@exists = 0,
+    'ALTER TABLE products ADD COLUMN image_url VARCHAR(1000) NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @exists = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'practitioner_id'
+);
+SET @sql = IF(@exists = 0,
+    'ALTER TABLE products ADD COLUMN practitioner_id BIGINT NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @exists = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'image_url'
+);
+SET @sql = IF(@exists = 1,
+    'ALTER TABLE products MODIFY COLUMN image_url VARCHAR(1000) NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 CREATE TABLE IF NOT EXISTS orders (
-    order_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
     quantity INT NOT NULL,
     total_amount DECIMAL(10,2) NOT NULL,
     address_line1 VARCHAR(255) NOT NULL,
@@ -126,8 +191,8 @@ CREATE TABLE IF NOT EXISTS orders (
 
 CREATE TABLE IF NOT EXISTS wishlist (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
     added_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
@@ -229,8 +294,8 @@ DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS payments (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    order_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+    order_id INT NOT NULL,
+    user_id INT NOT NULL,
     method VARCHAR(20) NOT NULL,
     status VARCHAR(20) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
@@ -245,8 +310,8 @@ CREATE TABLE IF NOT EXISTS payments (
 
 CREATE TABLE IF NOT EXISTS review (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    practitioner_id BIGINT NOT NULL,
+    user_id INT NOT NULL,
+    practitioner_id INT NOT NULL,
     rating INT NOT NULL,
     comment TEXT,
     created_at DATETIME,
@@ -258,8 +323,8 @@ CREATE TABLE IF NOT EXISTS review (
 
 CREATE TABLE IF NOT EXISTS product_review (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
     rating INT NOT NULL,
     comment TEXT,
     media_url VARCHAR(500),
@@ -299,7 +364,7 @@ DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS question (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id INT NOT NULL,
     question TEXT NOT NULL,
     created_at DATETIME,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -309,7 +374,7 @@ CREATE TABLE IF NOT EXISTS question (
 CREATE TABLE IF NOT EXISTS answer (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     question_id BIGINT NOT NULL,
-    practitioner_id BIGINT NOT NULL,
+    practitioner_id INT NOT NULL,
     answer TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (question_id) REFERENCES question(id) ON DELETE CASCADE,

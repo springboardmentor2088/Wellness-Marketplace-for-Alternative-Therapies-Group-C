@@ -1,13 +1,26 @@
 import { getUserDashboard } from "./practitionerService";
 
 let cachedUserId = null;
+let cachedToken = null;
+
+export const clearCurrentUserIdCache = () => {
+  cachedUserId = null;
+  cachedToken = null;
+  localStorage.removeItem("userId");
+};
 
 export const getCurrentUserId = async () => {
   const token = localStorage.getItem("accessToken");
   if (!token) {
-    cachedUserId = null;
-    localStorage.removeItem("userId");
+    clearCurrentUserIdCache();
     throw new Error("Not authenticated");
+  }
+
+  if (cachedToken !== token) {
+    // Token changed (new login/refresh/account switch) so user id must be re-resolved.
+    cachedUserId = null;
+    cachedToken = token;
+    localStorage.removeItem("userId");
   }
 
   if (cachedUserId) return cachedUserId;
@@ -28,6 +41,7 @@ export const getCurrentUserId = async () => {
   }
 
   cachedUserId = id;
+  cachedToken = token;
   localStorage.setItem("userId", String(id));
   return cachedUserId;
 };

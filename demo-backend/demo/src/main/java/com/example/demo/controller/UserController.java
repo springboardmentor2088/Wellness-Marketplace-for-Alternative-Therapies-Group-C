@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.User;
+import com.example.demo.notification.service.NotificationService;
 import com.example.demo.repository.OrderRepository;
 import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.example.demo.service.TherapySessionService;
+import com.example.demo.model.TherapySession;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -29,6 +32,9 @@ public class UserController {
     @Autowired
     OrderRepository orderRepository;
 
+    @Autowired
+    NotificationService notificationService;
+
     @GetMapping("/dashboard")
     public ResponseEntity<?> dashboard(@RequestParam(value = "email", required = false) String email) {
         User user = resolveAuthenticatedUser(email);
@@ -37,9 +43,13 @@ public class UserController {
         }
 
         Map<String, Object> resp = new HashMap<>();
+        List<TherapySession> sessions = sessionService.getSessionsForUser(user);
+        notificationService.syncUpcomingSessionNotifications(sessions);
+
         resp.put("userProfile", user);
-        resp.put("sessionHistory", sessionService.getSessionsForUser(user));
+        resp.put("sessionHistory", sessions);
         resp.put("productOrders", orderRepository.findByUserId(user.getId()));
+        resp.put("notifications", notificationService.getNotificationsByUserId(user.getId().longValue()));
 
         return ResponseEntity.ok(resp);
     }

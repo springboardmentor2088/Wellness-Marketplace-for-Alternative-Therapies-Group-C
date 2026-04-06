@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.nio.file.StandardCopyOption;
 
 @Service
 public class ProductReviewService {
@@ -83,7 +82,6 @@ public class ProductReviewService {
 
         boolean isImage = contentType.startsWith("image/");
         boolean isVideo = contentType.startsWith("video/");
-
         if (!isImage && !isVideo) {
             throw new IllegalArgumentException("Only image/video uploads are allowed");
         }
@@ -100,8 +98,7 @@ public class ProductReviewService {
 
             String fileName = UUID.randomUUID() + extension;
             Path target = REVIEW_UPLOAD_DIR.resolve(fileName).normalize();
-
-            Files.copy(mediaFile.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(mediaFile.getInputStream(), target);
 
             review.setMediaType(isVideo ? "VIDEO" : "IMAGE");
             review.setMediaUrl("/api/product-reviews/media/" + fileName);
@@ -115,7 +112,6 @@ public class ProductReviewService {
             if (!review.getUserId().equals(userId)) {
                 throw new IllegalArgumentException("You can only delete your own reviews");
             }
-
             if (review.getMediaUrl() != null) {
                 String fileName = review.getMediaUrl().replace("/api/product-reviews/media/", "");
                 try {
@@ -124,7 +120,6 @@ public class ProductReviewService {
                     // ignore file deletion failure
                 }
             }
-
             productReviewRepository.delete(review);
         });
     }

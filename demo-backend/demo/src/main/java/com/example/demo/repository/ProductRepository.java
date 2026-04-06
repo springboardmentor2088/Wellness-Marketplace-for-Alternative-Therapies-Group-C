@@ -14,4 +14,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 	long countByPractitionerIdIsNotNull();
 
 	List<Product> findByPractitionerIdIsNotNull();
+
+	List<Product> findByPractitionerId(Long practitionerId);
+
+	boolean existsByNameIgnoreCase(String name);
 }

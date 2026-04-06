@@ -93,6 +93,8 @@ const Register = () => {
     setIsLoading(true);
 
     try {
+      let response;
+
       if (role === "PRACTITIONER" && !isLicenseResolved) {
         throw new Error("Please verify license number first");
       }

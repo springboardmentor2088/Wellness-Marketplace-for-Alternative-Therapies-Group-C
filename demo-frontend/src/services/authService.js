@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearCurrentUserIdCache } from "./userService";
 
 const API_BASE_URL = "http://localhost:8080/api/auth";
 
@@ -101,5 +102,6 @@ export const saveAuthData = (response) => {
 };
 
 export const logout = () => {
+  clearCurrentUserIdCache();
   localStorage.clear();
 };

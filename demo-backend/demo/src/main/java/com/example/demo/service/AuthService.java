@@ -10,6 +10,7 @@ import com.example.demo.model.PractitionerProfile;
 import com.example.demo.model.Role;
 import com.example.demo.model.User;
 import com.example.demo.model.VerificationStatus;
+import com.example.demo.notification.service.NotificationService;
 import com.example.demo.repository.PractitionerProfileRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtUtil;
@@ -50,6 +51,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
+    private final NotificationService notificationService;
     private final JavaMailSender mailSender;
     private final String mailFrom;
     private final String frontendBaseUrl;
@@ -61,6 +63,7 @@ public class AuthService {
             JwtUtil jwtUtil,
             AuthenticationManager authenticationManager,
             UserDetailsService userDetailsService,
+            NotificationService notificationService,
             JavaMailSender mailSender,
             @Value("${app.mail.from:${spring.mail.username:}}") String mailFrom,
             @Value("${app.frontend.base-url:http://localhost:3000}") String frontendBaseUrl) {
@@ -71,6 +74,7 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
+        this.notificationService = notificationService;
         this.mailSender = mailSender;
         this.mailFrom = mailFrom;
         this.frontendBaseUrl = frontendBaseUrl;
@@ -161,6 +165,12 @@ public class AuthService {
             log.info("Authentication successful for: {}", request.getEmail());
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+
+            try {
+                notificationService.createLoginNotification(user);
+            } catch (Exception notificationEx) {
+                log.warn("Login notification failed for {}: {}", request.getEmail(), notificationEx.getMessage());
+            }
 
             return AuthResponse.builder()
                     .accessToken(jwtUtil.generateAccessToken(userDetails))

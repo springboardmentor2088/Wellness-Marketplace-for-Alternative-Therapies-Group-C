@@ -1,24 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Button from "../components/Button";
 import ReviewForm from "../components/ReviewForm";
 import ReviewList from "../components/ReviewList";
 import { getProductById } from "../services/productService";
 import { useCart } from "../context/CartContext";
-import {
-  deleteProductReview,
-  getProductReviews,
-} from "../services/productReviewService";
+import { deleteProductReview, getProductReviews } from "../services/productReviewService";
 import { getProductImageSrc } from "../services/imageService";
 import { useWishlist } from "../context/WishlistContext";
 import { getCurrentUserId } from "../services/userService";
+
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
-
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,35 +25,24 @@ const ProductDetailPage = () => {
   const [reviewError, setReviewError] = useState("");
   const [currentUserId, setCurrentUserId] = useState(null);
 
-  const isLoggedIn = useMemo(
-    () => Boolean(localStorage.getItem("accessToken")),
-    []
-  );
+  const isLoggedIn = useMemo(() => Boolean(localStorage.getItem("accessToken")), []);
   const role = useMemo(() => localStorage.getItem("role"), []);
   const parsedProductId = useMemo(() => Number(id), [id]);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchProduct = async () => {
+    (async () => {
       try {
         const response = await getProductById(id);
-        if (isMounted) {
-          setProduct(response.data);
-        }
+        if (isMounted) setProduct(response.data);
       } catch (err) {
         console.error("Error fetching product:", err);
-        if (isMounted) {
-          setError("Failed to load product details.");
-        }
+        if (isMounted) setError("Failed to load product details.");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
-    };
-
-    fetchProduct();
+    })();
 
     return () => {
       isMounted = false;
@@ -64,18 +50,16 @@ const ProductDetailPage = () => {
   }, [id]);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
-
-    const fetchCurrentUserId = async () => {
-      try {
-        const uid = await getCurrentUserId();
-        setCurrentUserId(uid);
-      } catch (err) {
-        console.error("Error fetching user id:", err);
-      }
-    };
-
-    fetchCurrentUserId();
+    if (isLoggedIn) {
+      (async () => {
+        try {
+          const uid = await getCurrentUserId();
+          setCurrentUserId(uid);
+        } catch (e) {
+          console.error("Error fetching user id:", e);
+        }
+      })();
+    }
   }, [isLoggedIn]);
 
   const formatDate = (isoOrNull) => {
@@ -85,9 +69,8 @@ const ProductDetailPage = () => {
     return d.toLocaleDateString();
   };
 
-  const loadReviews = useCallback(async () => {
+  const loadReviews = async () => {
     setReviewError("");
-
     if (!Number.isFinite(parsedProductId) || parsedProductId <= 0) return;
 
     setLoadingReviews(true);
@@ -96,29 +79,20 @@ const ProductDetailPage = () => {
       setReviews(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching product reviews:", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data ||
-        err?.message ||
-        "Failed to load reviews.";
-      setReviewError(msg);
+      const msg = err?.response?.data?.message || err?.response?.data || err?.message;
+      setReviewError(msg || "Failed to load reviews.");
       setReviews([]);
     } finally {
       setLoadingReviews(false);
     }
-  }, [parsedProductId]);
+  };
 
   const handleDeleteReview = async (reviewId) => {
     if (!currentUserId) return;
-
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this review?"
-    );
-    if (!confirmed) return;
-
+    if (!window.confirm("Are you sure you want to delete this review?")) return;
     try {
       await deleteProductReview(reviewId, currentUserId);
-      await loadReviews();
+      loadReviews();
     } catch (err) {
       console.error("Error deleting review:", err);
     }
@@ -126,13 +100,12 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     loadReviews();
-  }, [parsedProductId, loadReviews]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsedProductId]);
 
   const averageRating = useMemo(() => {
     if (!reviews.length) return null;
-    const sum = reviews.reduce((acc, review) => {
-      return acc + (Number(review.rating) || 0);
-    }, 0);
+    const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
     return Math.round((sum / reviews.length) * 10) / 10;
   }, [reviews]);
 
@@ -140,23 +113,18 @@ const ProductDetailPage = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-6">
-          <Link
-            to="/products"
-            className="text-sm text-emerald-700 hover:underline"
-          >
+          <Link to="/products" className="text-sm text-emerald-700 hover:underline">
             ← Back to products
           </Link>
         </div>
 
-        {loading && <p className="text-gray-600">Loading product...</p>}
+        {loading && <p className="text-gray-600">Loading product…</p>}
         {error && <p className="text-red-600">{error}</p>}
 
         {!loading && !error && product && (
           <div className="space-y-5">
             <div className="rounded-3xl border border-gray-200 bg-white p-7 shadow-sm">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {product.name}
-              </h2>
+              <h2 className="text-2xl font-bold text-gray-900">{product.name}</h2>
 
               <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
                 {getProductImageSrc(product) ? (
@@ -191,7 +159,7 @@ const ProductDetailPage = () => {
               <div className="mt-6">
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    className="w-auto rounded-xl px-4 py-2"
+                    className="w-auto py-2 px-4 rounded-xl"
                     onClick={() => {
                       addToCart(product, 1);
                       navigate("/cart");
@@ -202,21 +170,19 @@ const ProductDetailPage = () => {
 
                   <Button
                     variant="secondary"
-                    className="w-auto rounded-xl px-4 py-2"
+                    className="w-auto py-2 px-4 rounded-xl"
                     onClick={async () => {
                       try {
                         const added = await toggleWishlist(product.id);
                         if (added) {
                           navigate("/wishlist");
                         }
-                      } catch (err) {
-                        console.error("Wishlist error:", err);
+                      } catch (e) {
+                        console.error(e);
                       }
                     }}
                   >
-                    {isWishlisted(product.id)
-                      ? "Wishlisted"
-                      : "Add to Wishlist"}
+                    {isWishlisted(product.id) ? "Wishlisted" : "Add to Wishlist"}
                   </Button>
                 </div>
               </div>
@@ -225,22 +191,19 @@ const ProductDetailPage = () => {
             <div className="rounded-3xl border border-gray-200 bg-white p-7 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    Product Reviews
-                  </h3>
+                  <h3 className="text-xl font-bold text-gray-900">Product reviews</h3>
                   <p className="mt-1 text-sm text-gray-600">
                     {reviews.length} review{reviews.length !== 1 ? "s" : ""}
                     {averageRating ? ` · Avg ${averageRating}/5` : ""}
                   </p>
                 </div>
-
                 <button
                   type="button"
                   onClick={loadReviews}
                   disabled={loadingReviews}
                   className="text-sm font-semibold text-emerald-700 hover:underline disabled:opacity-60"
                 >
-                  {loadingReviews ? "Loading..." : "Refresh"}
+                  {loadingReviews ? "Loading…" : "Refresh"}
                 </button>
               </div>
 
@@ -251,10 +214,7 @@ const ProductDetailPage = () => {
               )}
 
               <div className="mt-5">
-                <h4 className="text-sm font-bold text-gray-900">
-                  Leave a product review
-                </h4>
-
+                <h4 className="text-sm font-bold text-gray-900">Leave a product review</h4>
                 <ReviewForm
                   productId={parsedProductId}
                   canSubmit={isLoggedIn && (!role || role === "PATIENT")}
@@ -270,10 +230,10 @@ const ProductDetailPage = () => {
               </div>
 
               <div className="mt-6">
-                <ReviewList
-                  reviews={reviews}
-                  loading={loadingReviews}
-                  formatDate={formatDate}
+                <ReviewList 
+                  reviews={reviews} 
+                  loading={loadingReviews} 
+                  formatDate={formatDate} 
                   currentUserId={currentUserId}
                   onDeleteReview={handleDeleteReview}
                 />

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { logout } from "../services/authService";
 import { deleteOrder, getOrders } from "../services/orderService";
 import { getAllProducts } from "../services/productService";
-import { getCurrentUserId } from "../services/userService";
 import { format } from "date-fns";
 
 const MyOrders = () => {
@@ -17,8 +16,7 @@ const MyOrders = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userId = await getCurrentUserId();
-        const ordersResponse = await getOrders(userId);
+        const ordersResponse = await getOrders();
         const productsResponse = await getAllProducts();
 
         const productsMap = {};

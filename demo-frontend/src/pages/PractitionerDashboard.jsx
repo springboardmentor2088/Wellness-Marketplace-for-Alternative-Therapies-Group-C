@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { logout } from "../services/authService";
 import { getSessions } from "../services/sessionService";
 import { getMyPractitionerProfile, getPractitionerEarnings } from "../services/practitionerService";
+import { getMyProducts, addMyProductWithImage, deleteMyProduct } from "../services/productService";
 import CalendarWidget from "../components/CalendarWidget";
 import { format, isSameDay } from "date-fns";
 
@@ -15,6 +16,19 @@ const PractitionerDashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [earnings, setEarnings] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [myProducts, setMyProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState("");
+  const [productNotice, setProductNotice] = useState("");
+  const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [productForm, setProductForm] = useState({
+    name: "",
+    description: "",
+    price: "",
+    category: "",
+    stock: "",
+  });
   const name = localStorage.getItem("name") || "Doctor";
 
   useEffect(() => {
@@ -54,9 +68,97 @@ const PractitionerDashboard = () => {
     }
   }, [activeTab]);
 
+  const fetchMyProducts = async () => {
+    setProductsLoading(true);
+    setProductsError("");
+    try {
+      const res = await getMyProducts();
+      setMyProducts(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.response?.data || "Failed to load your products.";
+      setProductsError(typeof message === "string" ? message : "Failed to load your products.");
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "products") {
+      fetchMyProducts();
+    }
+  }, [activeTab]);
+
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleProductInputChange = (event) => {
+    const { name, value } = event.target;
+    setProductForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddProduct = async (event) => {
+    event.preventDefault();
+    setProductNotice("");
+    setProductsError("");
+
+    if (!productForm.name.trim() || !productForm.price.trim()) {
+      setProductsError("Product name and price are required.");
+      return;
+    }
+
+    const payload = {
+      name: productForm.name.trim(),
+      description: productForm.description.trim(),
+      price: Number(productForm.price),
+      category: productForm.category.trim(),
+      stock: productForm.stock === "" ? 0 : Number(productForm.stock),
+    };
+
+    if (Number.isNaN(payload.price) || payload.price <= 0) {
+      setProductsError("Price must be greater than 0.");
+      return;
+    }
+
+    if (Number.isNaN(payload.stock) || payload.stock < 0) {
+      setProductsError("Stock cannot be negative.");
+      return;
+    }
+
+    setIsSubmittingProduct(true);
+    try {
+      await addMyProductWithImage(payload, selectedImageFile);
+      setProductForm({
+        name: "",
+        description: "",
+        price: "",
+        category: "",
+        stock: "",
+      });
+      setSelectedImageFile(null);
+      setProductNotice("Product added successfully.");
+      await fetchMyProducts();
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.response?.data || "Failed to add product.";
+      setProductsError(typeof message === "string" ? message : "Failed to add product.");
+    } finally {
+      setIsSubmittingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    setProductNotice("");
+    setProductsError("");
+
+    try {
+      await deleteMyProduct(productId);
+      setProductNotice("Product removed successfully.");
+      await fetchMyProducts();
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.response?.data || "Failed to delete product.";
+      setProductsError(typeof message === "string" ? message : "Failed to delete product.");
+    }
   };
 
   // Sessions on the calendar-selected date
@@ -87,6 +189,7 @@ const PractitionerDashboard = () => {
         <nav className="space-y-1 text-sm flex-1">
           <p onClick={() => setActiveTab("dashboard")} className={`px-3 py-2 rounded-lg font-semibold cursor-pointer transition ${activeTab === "dashboard" ? "bg-blue-800" : "hover:bg-blue-800"}`}>Dashboard</p>
           <p onClick={() => setActiveTab("earnings")} className={`px-3 py-2 rounded-lg font-semibold cursor-pointer transition ${activeTab === "earnings" ? "bg-blue-800" : "hover:bg-blue-800"}`}>Earnings</p>
+          <p onClick={() => setActiveTab("products")} className={`px-3 py-2 rounded-lg font-semibold cursor-pointer transition ${activeTab === "products" ? "bg-blue-800" : "hover:bg-blue-800"}`}>My Products</p>
           <p onClick={() => navigate("/my-sessions")} className="px-3 py-2 hover:bg-blue-800 rounded-lg cursor-pointer transition">Appointments</p>
           <p onClick={() => navigate("/availability")} className="px-3 py-2 hover:bg-blue-800 rounded-lg cursor-pointer transition">Manage Availability</p>
           <p onClick={() => navigate("/community")} className="px-3 py-2 hover:bg-blue-800 rounded-lg cursor-pointer transition">Community Q&A</p>
@@ -268,11 +371,177 @@ const PractitionerDashboard = () => {
           </>
         )}
 
+        {activeTab === "products" && (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-800">My Wellness Products</h1>
+              <p className="text-gray-500 mt-1">Add products to your catalog and manage your existing inventory.</p>
+            </div>
+
+            {productsError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{productsError}</div>
+            )}
+
+            {productNotice && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">{productNotice}</div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <h2 className="text-base font-bold text-gray-800 mb-1">Add New Product</h2>
+                <p className="text-sm text-gray-500 mb-5">These products will be visible in the patient wellness store.</p>
+
+                <form onSubmit={handleAddProduct} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={productForm.name}
+                      onChange={handleProductInputChange}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="e.g. Herbal Stress Relief Tea"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      name="description"
+                      value={productForm.description}
+                      onChange={handleProductInputChange}
+                      rows={3}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Short benefits and usage details"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price (INR)</label>
+                      <input
+                        type="number"
+                        name="price"
+                        min="1"
+                        step="0.01"
+                        value={productForm.price}
+                        onChange={handleProductInputChange}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="499"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                      <input
+                        type="number"
+                        name="stock"
+                        min="0"
+                        value={productForm.stock}
+                        onChange={handleProductInputChange}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        placeholder="25"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <input
+                      type="text"
+                      name="category"
+                      value={productForm.category}
+                      onChange={handleProductInputChange}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Supplements, Fitness, Herbal, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] || null;
+                        setSelectedImageFile(file);
+                      }}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Optional. Upload a local image file (JPG, PNG, WEBP, etc.).
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingProduct}
+                    className="w-full py-3.5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition disabled:opacity-60"
+                  >
+                    {isSubmittingProduct ? "Adding product..." : "Add Product"}
+                  </button>
+                </form>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-bold text-gray-800">Your Product Catalog</h2>
+                  <button
+                    onClick={fetchMyProducts}
+                    className="text-xs font-bold text-blue-600 hover:underline"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {productsLoading ? (
+                  <div className="py-10 flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : myProducts.length === 0 ? (
+                  <div className="border border-dashed border-gray-200 rounded-xl p-8 text-center">
+                    <p className="text-sm text-gray-500">No products added yet.</p>
+                    <p className="text-xs text-gray-400 mt-1">Use the form to add your first product.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[560px] overflow-y-auto pr-1">
+                    {myProducts.map((product) => (
+                      <div key={product.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{product.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">{product.category || "Uncategorized"}</p>
+                            <p className="text-xs text-gray-500 mt-1">Stock: {product.stock ?? 0}</p>
+                          </div>
+                          <p className="text-sm font-extrabold text-blue-700">₹{product.price}</p>
+                        </div>
+
+                        {product.description && (
+                          <p className="text-xs text-gray-600 mt-2">{product.description}</p>
+                        )}
+
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="text-xs font-bold text-red-600 hover:underline"
+                          >
+                            Remove Product
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
       </main>
     </div>
   );
 };
 
 export default PractitionerDashboard;
-
-

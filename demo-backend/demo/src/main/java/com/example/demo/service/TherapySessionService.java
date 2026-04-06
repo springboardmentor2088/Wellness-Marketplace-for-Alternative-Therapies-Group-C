@@ -5,6 +5,7 @@ import com.example.demo.model.Role;
 import com.example.demo.model.TherapySession;
 import com.example.demo.model.TherapySessionStatus;
 import com.example.demo.model.User;
+import com.example.demo.notification.service.NotificationService;
 import com.example.demo.repository.PractitionerAvailableSlotRepository;
 import com.example.demo.repository.PractitionerProfileRepository;
 import com.example.demo.repository.TherapySessionRepository;
@@ -27,6 +28,9 @@ public class TherapySessionService {
 
     @Autowired
     private PractitionerProfileRepository profileRepository;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Transactional
     public TherapySession bookSession(User client, Long slotId, String notes) {
@@ -62,7 +66,9 @@ public class TherapySessionService {
             profileRepository.save(profile);
         });
 
-        return sessionRepository.save(session);
+        TherapySession saved = sessionRepository.save(session);
+        notificationService.createSessionBookedNotification(saved);
+        return saved;
     }
 
     public List<TherapySession> getSessionsForUser(User user) {

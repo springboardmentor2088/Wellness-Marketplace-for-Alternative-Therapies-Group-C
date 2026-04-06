@@ -23,6 +23,11 @@ import OrderDetails from './pages/OrderDetails';
 import WishlistPage from './pages/WishlistPage';
 import CommunityQAPage from './pages/CommunityQAPage';
 import ReviewFormPage from './pages/ReviewFormPage';
+import SymptomPage from './pages/SymptomPage';
+import DashboardPage from './pages/DashboardPage';
+import ChatbotPage from './pages/ChatbotPage';
+import NotificationsPage from './pages/NotificationsPage';
+import ChatbotLauncher from './components/ChatbotLauncher';
 import ProtectedRoute from './components/ProtectedRoute';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -151,12 +156,47 @@ function App() {
             }
           />
 
+          {/* Milestone 4 */}
+          <Route
+            path="/symptom"
+            element={
+              <ProtectedRoute requiredRole="PATIENT">
+                <SymptomPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute requiredRole="PATIENT">
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chatbot"
+            element={
+              <ProtectedRoute requiredRole="PATIENT">
+                <ChatbotPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute requiredRole="PATIENT">
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Default Routes */}
           <Route path="/" element={<Home />} />
 
           {/* Catch all - redirect to login */}
           <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
+          <ChatbotLauncher />
         </Router>
       </WishlistProvider>
     </CartProvider>

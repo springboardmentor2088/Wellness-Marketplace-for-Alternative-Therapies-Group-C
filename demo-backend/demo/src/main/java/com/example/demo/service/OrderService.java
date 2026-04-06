@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.model.Order;
 import com.example.demo.model.Product;
+import com.example.demo.notification.service.NotificationService;
 import com.example.demo.repository.OrderRepository;
 import com.example.demo.repository.PaymentRepository;
 import com.example.demo.repository.ProductRepository;
@@ -21,12 +22,18 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
     private final PractitionerProfileRepository practitionerProfileRepository;
+    private final NotificationService notificationService;
 
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, PaymentRepository paymentRepository, PractitionerProfileRepository practitionerProfileRepository) {
+    public OrderService(OrderRepository orderRepository,
+                        ProductRepository productRepository,
+                        PaymentRepository paymentRepository,
+                        PractitionerProfileRepository practitionerProfileRepository,
+                        NotificationService notificationService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.paymentRepository = paymentRepository;
         this.practitionerProfileRepository = practitionerProfileRepository;
+        this.notificationService = notificationService;
     }
 
     public Order createOrder(Order order) {
@@ -50,7 +57,14 @@ public class OrderService {
             });
         }
 
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+
+        String productName = product.getName() == null ? "product" : product.getName();
+        String message = "Order placed: " + productName + " (Qty " + saved.getQuantity() + ") for INR "
+            + saved.getTotalAmount() + ".";
+        notificationService.createNotification(saved.getUserId(), "ORDER_PLACED", message);
+
+        return saved;
     }
 
     public List<Order> getAllOrders() {

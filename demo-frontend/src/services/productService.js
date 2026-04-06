@@ -24,3 +24,33 @@ export const getAllProducts = async () => {
 export const getProductById = async (id) => {
   return api.get(`/products/${id}`);
 };
+
+export const getMyProducts = async () => {
+  return api.get("/products/my");
+};
+
+export const addMyProduct = async (payload) => {
+  return api.post("/products/my", payload);
+};
+
+export const addMyProductWithImage = async (payload, imageFile) => {
+  const formData = new FormData();
+  formData.append("name", payload.name);
+  formData.append("description", payload.description || "");
+  formData.append("price", String(payload.price));
+  formData.append("category", payload.category || "");
+  formData.append("stock", String(payload.stock ?? 0));
+  if (imageFile) {
+    formData.append("image", imageFile);
+  }
+
+  return api.post("/products/my/upload", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+
+export const deleteMyProduct = async (productId) => {
+  return api.delete(`/products/my/${productId}`);
+};

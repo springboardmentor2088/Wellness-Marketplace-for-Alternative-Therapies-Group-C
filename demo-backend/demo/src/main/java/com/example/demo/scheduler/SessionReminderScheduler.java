@@ -2,6 +2,7 @@ package com.example.demo.scheduler;
 
 import com.example.demo.model.TherapySession;
 import com.example.demo.model.TherapySessionStatus;
+import com.example.demo.notification.service.NotificationService;
 import com.example.demo.repository.TherapySessionRepository;
 import com.example.demo.service.EmailReminderService;
 import org.slf4j.Logger;
@@ -33,6 +34,9 @@ public class SessionReminderScheduler {
 
     @Autowired
     private EmailReminderService emailReminderService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Value("${app.reminder.hours-before:24}")
     private int hoursBefore;
@@ -76,6 +80,9 @@ public class SessionReminderScheduler {
                 emailReminderService.sendSessionReminder(session);
                 // Email the practitioner
                 emailReminderService.sendPractitionerReminder(session);
+
+                // In-app notification for patient dashboard
+                notificationService.createSessionReminderNotification(session);
 
                 // Mark as sent so this session is never processed again
                 session.setReminderSent(true);
